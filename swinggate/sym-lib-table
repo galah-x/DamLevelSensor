@@ -1,0 +1,7 @@
+(sym_lib_table
+  (version 7)
+  (lib (name "swinggate_sch")(type "Legacy")(uri "/fs/john/projects/arduino/SwingGate/swinggate_sch.lib")(options "")(descr ""))
+  (lib (name "swinggate-rescue")(type "KiCad")(uri "${KIPRJMOD}/swinggate-rescue.kicad_sym")(options "")(descr ""))
+  (lib (name "dls")(type "KiCad")(uri "${KIPRJMOD}/dls.kicad_sym")(options "")(descr ""))
+  (lib (name "New_Library")(type "KiCad")(uri "${KIPRJMOD}/New_Library.kicad_sym")(options "")(descr ""))
+)

@@ -1,0 +1,15 @@
+"Id";"Designator";"Package";"Quantity";"Designation";"Supplier and ref";
+1;"U3";"IBT_2";1;"IBT2_HBRIDGE";;;
+2;"H1,H2,H3";"MountingHole_3.2mm_M3_DIN965_Pad";3;"MountingHole";;;
+3;"C1,C2,C3,C4,C5";"C_0805_2012Metric_Pad1.15x1.40mm_HandSolder";5;"100N";;;
+4;"D1";"D_SMA-SMB_Universal_Handsoldering";1;"APD240VR";;;
+5;"J1,J3,J4,J5";"PhoenixContact_MC_1,5_2-G-5.08_1x02_P5.08mm_Horizontal";4;"Conn_01x02_Female";;;
+6;"Q1";"TO-263-3_TabPin2";1;"IPB081";;;
+7;"R3";"R_0805_2012Metric_Pad1.15x1.40mm_HandSolder";1;"402K";;;
+8;"R4,R9,R10,R11,R13,R15";"R_0805_2012Metric_Pad1.15x1.40mm_HandSolder";6;"100K";;;
+9;"R5,R6";"R_0805_2012Metric_Pad1.15x1.40mm_HandSolder";2;"10K";;;
+10;"R7,R8";"R_0805_2012Metric_Pad1.15x1.40mm_HandSolder";2;"1K2";;;
+11;"R12,R14,R16";"R_0805_2012Metric_Pad1.15x1.40mm_HandSolder";3;"33K";;;
+12;"U1";"switcher1";1;"switcher1";;;
+13;"U2";"DIP-26_W0.8_Socket";1;"Moteino_hcw";;;
+14;"J2";"PhoenixContact_MC_1,5_4-G-5.08_1x04_P5.08mm_Horizontal";1;"Conn_01x04_Female";;;
