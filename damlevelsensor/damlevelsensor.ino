@@ -1,6 +1,6 @@
 //    -*- Mode: c++     -*-
 // emacs automagically updates the timestamp field on save
-// my $ver =  'dam sonar level sensor  Time-stamp: "2023-07-29 14:40:31 john"';
+// my $ver =  'dam sonar level sensor  Time-stamp: "2023-07-29 16:46:38 john"';
 
 // currently using arduino-1.8.10
 
@@ -89,7 +89,8 @@ void setup()
   pinMode(SONAR_OUTSEL,  OUTPUT);
   pinMode(SONAR_PRECHARGE,  OUTPUT);
   pinMode(SONAR_POWER,  OUTPUT);
-
+  pinMode(BATT_ADC, INPUT);
+  
   power_sonar(0);
   
   SonarComms.begin(9600);
@@ -104,11 +105,11 @@ void setup()
   delay (100);
   Blink(LED, 100);
   delay (100);
-
- loopcounter_2secs = 0; 
- loopcounter_mins = 0 ; 
- loopcounter_hours = 0 ; 
-
+  
+  loopcounter_2secs = 0; 
+  loopcounter_mins = 0 ; 
+  loopcounter_hours = 0 ; 
+ 
   
 #ifdef DORADIO
 #ifdef DOSERIAL      // note these serial calls are nested inside the DORADIO enable
@@ -146,6 +147,10 @@ void setup()
 
 #ifdef DOSERIAL
   serial_print_temp();
+  Serial.print("batt=");
+  batt_v = analogRead(BATT_ADC);
+  Serial.print(batt_v * BATT_GAIN);
+  Serial.println("V");
   Serial.flush();
 #endif
 
@@ -179,15 +184,23 @@ void loop(void)
       loopcounter_hours++;
     }
 
-  if (loopcounter_2secs == 14) // every half minute
+  if ((loopcounter_hours == 1) &&
+      (loopcounter_mins == 0) &&
+      (loopcounter_2secs == 0))
     {
+      loopcounter_hours = 0;
+      loopcounter_mins = 0;
+      loopcounter_2secs = 0;
+      
 #ifdef DOSERIAL
       serial_print_temp();
-      Serial.print(loopcounter_mins);
-      Serial.print(" ");
-      Serial.println(loopcounter_hours);
       Serial.flush();
-#endif
+      // read before enabling sonar..
+      Serial.print("batt=");
+      batt_v = analogRead(BATT_ADC);
+      Serial.print(batt_v * BATT_GAIN);
+      Serial.println("V");
+      Serial.flush();
       // I observe it takes the Sonar about 1.05 seconds from power on to first message
       depth = sonar_depth(3000, 1); // timeout in 3000ms, pat dog while waiting.
       if (depth < 0)
@@ -198,6 +211,7 @@ void loop(void)
 	  Serial.println(depth);
 	}
       Serial.flush();
+#endif
     }
   LowPower.powerDown(SLEEP_2S, ADC_OFF, BOD_OFF);
   // pat the dog
