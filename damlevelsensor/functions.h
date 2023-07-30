@@ -1,6 +1,6 @@
 //    -*- Mode: c++     -*-
 // emacs automagically updates the timestamp field on save
-// my $ver =  'functions : dam sonar level sensor  Time-stamp: "2023-07-30 11:17:49 john"';
+// my $ver =  'functions : dam sonar level sensor  Time-stamp: "2023-07-30 14:12:01 john"';
 
 
 // generally used to flash a led on for the period specified
@@ -126,3 +126,34 @@ int16_t sonar_depth(uint32_t timeout, uint8_t enable_pat)
   return -1;
 }
   
+// send a buffer using the radio
+void sendMsg(uint8_t to)
+{
+  uint8_t len;
+  len = strlen((char *) buf);
+  Rmanager.sendtoWait(buf, len, to);
+}
+
+
+// read and print temperature with the radio
+void radio_print_T(void)
+{
+  dtostrf(tempsensor.readTemperature(),  5, 2, bufnum);
+  sprintf((char*) buf, "%c%cTemp=%s°C ", LOGGER, NODEID, bufnum);  
+  sendMsg(RELAY);
+}
+// read and print depth with the radio
+void radio_print_D(uint32_t timeout, uint8_t enable_pat)
+{
+  dtostrf(sonar_depth(timeout, enable_pat),  5, 2, bufnum);
+  sprintf((char*) buf, "%c%cDist=%s°C ", LOGGER, NODEID, bufnum);  
+  sendMsg(RELAY);
+}
+// read and print voltage and temperature and depth with the radio
+void radio_print_VTD(uint32_t timeout, uint8_t enable_pat)
+{
+  dtostrf((BATT_GAIN * analogRead(BATT_ADC)), 5, 2, bufnum);
+  dtostrf(tempsensor.readTemperature(),  5, 2, bufnum2);
+  sprintf((char*) buf, "%c%cV=%s T=%s°C D=%dmm", LOGGER, NODEID, bufnum,bufnum2, sonar_depth(timeout, enable_pat));  
+  sendMsg(RELAY);
+}

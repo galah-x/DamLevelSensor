@@ -1,6 +1,6 @@
 //    -*- Mode: c++     -*-
 // emacs automagically updates the timestamp field on save
-// my $ver =  'dam sonar level sensor  Time-stamp: "2023-07-30 10:42:13 john"';
+// my $ver =  'dam sonar level sensor  Time-stamp: "2023-07-30 14:10:06 john"';
 
 // Im currently using arduino-1.8.10 as thats where some of the libraries are installed.
 // for a moteino 328P with LoRa radio,  no USB. no flash.
@@ -27,14 +27,14 @@
 // onboard HW serial is used for debug. Should not be defined for normal operation
 // this is to the programmer connector.   The  arduino  Serial. object. 
 // this #define does NOT affect SoftwareSerial to the Sonar module.
-#define DOSERIAL
+// #define DOSERIAL
 #define SERIAL_BAUD 115200
 
 // The radio is used for normal operation. Generally turn radio on and serial off
 // for normal installed use.
 // Mainly controllable here since LoRa in my office affects the link to relay, LogRX,
 // poorly. So I do most initial runup on serial debug.
-// #define DORADIO
+#define DORADIO
 
 Adafruit_BMP280 tempsensor;    // I2C temperature sensor is a bmp280
 float temperature;
@@ -51,13 +51,12 @@ float batt_v;
 SoftwareSerial SonarComms (FROM_SONAR_TX, TO_SONAR_DUMMY_RX);
 SoftwareSerial UnusedComms (SECOND_SWSERIAL_RX, TO_SONAR_DUMMY_RX);
 
-#ifdef DORADIO
 // Singleton instance of the radio driver
-RH_RF95 driver;
+RH_RF95 radio;
 
-// Class to manage message delivery and receipt, using the driver declared above
-RHReliableDatagram manager(driver, NODEID);
-#endif
+// Class to manage message delivery and receipt, using the radio driver declared above
+RHReliableDatagram Rmanager(radio, NODEID);
+
 
 const uint8_t SHORT_RH_RF95_MAX_MESSAGE_LEN = 50;
 uint8_t buf[SHORT_RH_RF95_MAX_MESSAGE_LEN];
@@ -122,15 +121,15 @@ void setup()
 #endif
   
   // initialize the radio if it should be enabled
-  if (!manager.init()) {
+  if (!Rmanager.init()) {
     while (1) {  // radio broken, just blink fast.
       Blink(LED, 100);
       delay (100);
     }
   }
-  driver.setFrequency(915);    // to be sure, to be sure
-  driver.setModemConfig(RH_RF95::Bw31_25Cr48Sf512);  //set for pre-configured slow,long range
-  driver.setTxPower(17);       //set for 50mw , +17dbm
+  radio.setFrequency(915);    // to be sure, to be sure
+  radio.setModemConfig(RH_RF95::Bw31_25Cr48Sf512);  //set for pre-configured slow,long range
+  radio.setTxPower(17);       //set for 50mw , +17dbm
   
 #ifdef DOSERIAL
   Serial.println(F("inited radio"));
@@ -160,11 +159,9 @@ void setup()
   Serial.flush();
 #endif
 
-  // this is likely the radio greeting
-  // Greet(header, CurrentMotorState);
-#ifdef DOSERIAL
-  Serial.println("greeted");
-  Serial.flush();
+#ifdef DORADIO
+  sprintf((char*) buf, "%c%c%s %s", LOGGER, NODEID, fIAM, fVERSION);
+  sendMsg(RELAY);
 #endif
 
   wdt_enable(WDTO_8S);
@@ -217,6 +214,10 @@ void loop(void)
 	  Serial.println(depth);
 	}
       Serial.flush();
+#endif
+
+#ifdef DORADIO
+      radio_print_VTD(3000,1);
 #endif
     }
   LowPower.powerDown(SLEEP_2S, ADC_OFF, BOD_OFF);
