@@ -1,0 +1,53 @@
+tslope.log - from debug serial capture
+log.splt.pl - perl script to format the data of interest as a 2 column file
+tslope.dat  - 2 column data intended for gnuplot
+tslope.pdf  - gnuplot output
+
+*****
+plotted from gnuplot with commands
+ set terminal pdf
+ set output "tslope.pdf"
+ plot "tslope.dat"
+ exit
+
+*****
+
+Note the fire was burning in the lounge from ~6 to ~9pm.
+
+on the overnight run I see several things.
+below 14 degrees, seems constant.
+From 14 to 18 degrees, distance is linear with temp, with negative slope
+11mm in 2160 mm or -0.5% for 4 degree C increase in temperature.
+
+If I look up the speed of sound in air at STP
+T degrees C   m/s
+0	331.4
+5	334.4
+10	337.4
+15	340.4
+20	343.3
+25	346.3
+30	349.1
+40	354.7
+50	360.3
+
+then I'd expect the speed of sound to increase by 3m/s for 5 degrees from 10C to 15C,
+or about 3/339 m/s or 0.88% for 5 degrees  or 0.71% for 4 degrees
+
+An increase in velocity with temperature would produce a decrease in measure time and a resultant decrease in apparent distance.
+
+So temperature compensation would improve things,  but more accurate data is needed.
+Need to better understand the 40% error in the 2 slopes, and the off behavior from 12 to 14 degrees.
+
+Vms = 20.05 (273.16 + tC)1/2
+
+To first order, the speed of sound is not affected by pressure.
+
+Thus we see that the speed is also weakly affected by the humidity - more water in the air lowers the mean molecular mass.
+
+	Speed of Sound 
+                         Relative Humidity (%)
+T (C)   10	20	30	40	50	60	70	80	90
+0	331.5	331.5	331.5	331.6	331.6	331.6	331.7	331.7	331.7
+5	334.5	334.6	334.6	334.7	334.7	334.7	334.8	334.8	334.9
+10	337.5	337.6	337.7	337.7	337.8	337.9	337.9	338.0	338.0

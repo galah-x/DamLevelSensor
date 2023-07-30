@@ -1,47 +1,57 @@
 //    -*- Mode: c++     -*-
 // emacs automagically updates the timestamp field on save
-// my $ver =  'dam sonar level sensor  Time-stamp: "2023-07-29 16:46:38 john"';
+// my $ver =  'dam sonar level sensor  Time-stamp: "2023-07-30 10:42:13 john"';
 
-// currently using arduino-1.8.10
+// Im currently using arduino-1.8.10 as thats where some of the libraries are installed.
+// for a moteino 328P with LoRa radio,  no USB. no flash.
 
 #include <RHReliableDatagram.h>
-#include <RH_RF95.h>
+#include <RH_RF95.h>         // last 2 for the NRF95 LoRa module 
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
-#include <Adafruit_BMP280.h>
-#include <avr/wdt.h>       // watchdog
-#include <LowPower.h>      // sleep mode
-#include <SoftwareSerial.h>
-#include "pinout.h"        // pin map
-#include "addresses.h"     // radio addresses
-#include "cal.h"           // adc + resistor cal values
+#include <Adafruit_BMP280.h> // last 3 for the temp sensor
+#include <avr/wdt.h>         // watchdog
+#include <LowPower.h>        // sleep mode
+#include <SoftwareSerial.h>  // for the Sonar module
+#include "pinout.h"          // IO pin map
+#include "addresses.h"       // radio addresses
+#include "cal.h"             // adc + resistor cal values
+// #include "functions.h"  is positioned after the local variable defines
 
-// the F() macro puts strings into flash, not RAM. slower but lighter on RAM.
-#define fVERSION  F("20230729")
+// the F() macro puts strings into flash, not RAM.
+// Lighter on RAM which on a 328P is more limiting
+#define fVERSION  F("20230730")
 #define fIAM      F("DamLevel")
 #define fTEMP     F("Temp=")
 
-// debugging
+// onboard HW serial is used for debug. Should not be defined for normal operation
+// this is to the programmer connector.   The  arduino  Serial. object. 
+// this #define does NOT affect SoftwareSerial to the Sonar module.
 #define DOSERIAL
 #define SERIAL_BAUD 115200
 
+// The radio is used for normal operation. Generally turn radio on and serial off
+// for normal installed use.
+// Mainly controllable here since LoRa in my office affects the link to relay, LogRX,
+// poorly. So I do most initial runup on serial debug.
 // #define DORADIO
-
 
 Adafruit_BMP280 tempsensor;    // I2C temperature sensor is a bmp280
 float temperature;
 float batt_v;
 
 // The moteino only has one hw serial port, which is used for debug.
-// Going to use SW serial for the Sonar sensor, as its at 9600 baud.
-// I know when its supposed to be on. And its RX only.
-// However as the SW serial doesn't support an empty with only one port, I'll
-// create a second one to switch to.
+// Im going to use SW serial for the Sonar sensor, as
+// (1) its slow at 9600 baud.
+// (2) I know when its supposed to be on.
+// (3) its RX only, all suiting the pin interrupt, half duplex SW model
+// However, as the SW serial doesn't (appear to) support a queue empty when only
+// one port exists, and as a powerdown of the sonar looks a lot like a start bit, I'll
+// create a second imaginary serial port to switch to and from.
 SoftwareSerial SonarComms (FROM_SONAR_TX, TO_SONAR_DUMMY_RX);
 SoftwareSerial UnusedComms (SECOND_SWSERIAL_RX, TO_SONAR_DUMMY_RX);
 
 #ifdef DORADIO
-
 // Singleton instance of the radio driver
 RH_RF95 driver;
 
@@ -58,7 +68,7 @@ uint8_t loopcounter_2secs ;
 uint8_t loopcounter_mins ; 
 uint8_t loopcounter_hours ; 
 
-// needs the odd global variable
+// functions.h needs the odd global variable, so its down here.
 #include "functions.h"     // various named functions
 
 
@@ -75,30 +85,26 @@ void setup()
   Serial.println();
 #endif
 
-
   digitalWrite(SONAR_OUTSEL, 0);       //  average/processed not instantaneous
-  // I played with this, 0 seemed a littles slower + better filtered.
+  // I played with this, 0 seemed a little slower + better filtered.
   
-  digitalWrite(SONAR_PRECHARGE,0);     //  off.
-  digitalWrite(SONAR_POWER, 0);        //  off.
-  digitalWrite(TO_SONAR_DUMMY_RX, 0);  //  whatever
-  
-  pinMode(FROM_SONAR_TX, INPUT);
-  pinMode(SECOND_SWSERIAL_RX, INPUT_PULLUP);
-  pinMode(TO_SONAR_DUMMY_RX, OUTPUT);
-  pinMode(SONAR_OUTSEL,  OUTPUT);
-  pinMode(SONAR_PRECHARGE,  OUTPUT);
-  pinMode(SONAR_POWER,  OUTPUT);
-  pinMode(BATT_ADC, INPUT);
+  digitalWrite(SONAR_PRECHARGE,0);     //  power off.
+  digitalWrite(SONAR_POWER, 0);        //  power off.
+  digitalWrite(TO_SONAR_DUMMY_RX, 0);  //  imaginary output pin for SWserial
+  pinMode(FROM_SONAR_TX, INPUT);       // SWSerial input
+  pinMode(SECOND_SWSERIAL_RX, INPUT_PULLUP); // imaginary second SWSERIAL input
+  pinMode(TO_SONAR_DUMMY_RX, OUTPUT);  // imaginary SWSerial output
+  pinMode(SONAR_OUTSEL,  OUTPUT);      // Sonar filtering control
+  pinMode(SONAR_PRECHARGE,  OUTPUT);   // Sonar power 
+  pinMode(SONAR_POWER,  OUTPUT);       // main Sonar power 
+  pinMode(BATT_ADC, INPUT);            // battery voltage monitor
   
   power_sonar(0);
-  
   SonarComms.begin(9600);
   UnusedComms.begin(9600);
-  // switch to a high input
-  UnusedComms.listen();
+  UnusedComms.listen();      // switch SWSerial to a high unused input
   
-  // blink the led a couple of times to show boot visually
+  // now blink the led a couple of times to show booting visually
   pinMode(LED, OUTPUT);
   delay(1000);
   Blink(LED, 100);
@@ -109,33 +115,33 @@ void setup()
   loopcounter_2secs = 0; 
   loopcounter_mins = 0 ; 
   loopcounter_hours = 0 ; 
- 
-  
+   
 #ifdef DORADIO
 #ifdef DOSERIAL      // note these serial calls are nested inside the DORADIO enable
   Serial.println(F("now init radio"));
 #endif
   
-  // initialize the radio if enabled
+  // initialize the radio if it should be enabled
   if (!manager.init()) {
     while (1) {  // radio broken, just blink fast.
       Blink(LED, 100);
       delay (100);
     }
   }
-  driver.setFrequency(915);  // to be sure, to be sure
+  driver.setFrequency(915);    // to be sure, to be sure
   driver.setModemConfig(RH_RF95::Bw31_25Cr48Sf512);  //set for pre-configured slow,long range
-  driver.setTxPower(17);     //set for 50mw , +17dbm
+  driver.setTxPower(17);       //set for 50mw , +17dbm
   
 #ifdef DOSERIAL
   Serial.println(F("inited radio"));
 #endif
 
-#endif
-  
+#endif   // end of DORADIO switch
+
+  // initialize the temperature sensor 
   if (!tempsensor.begin(0x76))  // ebay module is at address 0x76 not (adafruit) 0x77
     {
-      while (1) {  // temp sensor broken, just blink med fast.
+      while (1) {  // temp sensor is broken, just blink med fast.
         Blink(LED, 200);
         delay (200);
       }
@@ -154,13 +160,13 @@ void setup()
   Serial.flush();
 #endif
 
+  // this is likely the radio greeting
   // Greet(header, CurrentMotorState);
 #ifdef DOSERIAL
   Serial.println("greeted");
   Serial.flush();
 #endif
 
-  // LastPollTime = millis();
   wdt_enable(WDTO_8S);
 
 #ifdef DOSERIAL
@@ -183,7 +189,7 @@ void loop(void)
       loopcounter_mins=0;
       loopcounter_hours++;
     }
-
+  // repeated action after a desired interval 
   if ((loopcounter_hours == 1) &&
       (loopcounter_mins == 0) &&
       (loopcounter_2secs == 0))
@@ -195,13 +201,13 @@ void loop(void)
 #ifdef DOSERIAL
       serial_print_temp();
       Serial.flush();
-      // read before enabling sonar..
+      // read battery before enabling sonar, which draws ~~15mA.
       Serial.print("batt=");
       batt_v = analogRead(BATT_ADC);
       Serial.print(batt_v * BATT_GAIN);
       Serial.println("V");
       Serial.flush();
-      // I observe it takes the Sonar about 1.05 seconds from power on to first message
+      // I observed it takes the Sonar about 1.05 seconds from power on to first message
       depth = sonar_depth(3000, 1); // timeout in 3000ms, pat dog while waiting.
       if (depth < 0)
 	Serial.println("No valid depth received");
@@ -214,7 +220,6 @@ void loop(void)
 #endif
     }
   LowPower.powerDown(SLEEP_2S, ADC_OFF, BOD_OFF);
-  // pat the dog
-  wdt_reset();
+  wdt_reset();    // pat the dog
 }
 
