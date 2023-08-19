@@ -1,6 +1,6 @@
 //    -*- Mode: c++     -*-
 // emacs automagically updates the timestamp field on save
-// my $ver =  'dam sonar level sensor  Time-stamp: "2023-07-30 14:10:06 john"';
+// my $ver =  'dam sonar level sensor  Time-stamp: "2023-08-11 12:33:56 john"';
 
 // Im currently using arduino-1.8.10 as thats where some of the libraries are installed.
 // for a moteino 328P with LoRa radio,  no USB. no flash.
@@ -19,8 +19,8 @@
 // #include "functions.h"  is positioned after the local variable defines
 
 // the F() macro puts strings into flash, not RAM.
-// Lighter on RAM which on a 328P is more limiting
-#define fVERSION  F("20230730")
+// Lighter on RAM which on a 328P is usually more limiting
+#define fVERSION  F("20230801")
 #define fIAM      F("DamLevel")
 #define fTEMP     F("Temp=")
 
@@ -35,6 +35,11 @@
 // Mainly controllable here since LoRa in my office affects the link to relay, LogRX,
 // poorly. So I do most initial runup on serial debug.
 #define DORADIO
+
+// allow 3000ms (3S) for a sonar measurement. I saw just over 1s.
+// And pat the dog while waiting for the averaged ping.
+#define SONAR_TIMEOUT 3000
+#define SONAR_PAT 1
 
 Adafruit_BMP280 tempsensor;    // I2C temperature sensor is a bmp280
 float temperature;
@@ -59,7 +64,7 @@ RHReliableDatagram Rmanager(radio, NODEID);
 
 
 const uint8_t SHORT_RH_RF95_MAX_MESSAGE_LEN = 50;
-uint8_t buf[SHORT_RH_RF95_MAX_MESSAGE_LEN];
+uint8_t buf[SHORT_RH_RF95_MAX_MESSAGE_LEN+1];
 char bufnum[8];    // want to allow -ddd.dd<null>
 char bufnum2[8];
 
@@ -75,13 +80,9 @@ void setup()
 {
 #ifdef DOSERIAL
   Serial.begin(SERIAL_BAUD);
-  Serial.print("0x");
-  Serial.print(NODEID,HEX);
-  Serial.print(" ");
-  Serial.print(fIAM);
-  Serial.print(" ");
-  Serial.print(fVERSION);
-  Serial.println();
+  snprintf_P(buf, sizeof(buf), PSTR("0x%x %S %S"), NODEID, fIAM, fVERSION);
+  Serial.println((char *)buf);
+  Serial.flush();
 #endif
 
   digitalWrite(SONAR_OUTSEL, 0);       //  average/processed not instantaneous
@@ -118,6 +119,7 @@ void setup()
 #ifdef DORADIO
 #ifdef DOSERIAL      // note these serial calls are nested inside the DORADIO enable
   Serial.println(F("now init radio"));
+  Serial.flush();
 #endif
   
   // initialize the radio if it should be enabled
@@ -132,12 +134,12 @@ void setup()
   radio.setTxPower(17);       //set for 50mw , +17dbm
   
 #ifdef DOSERIAL
-  Serial.println(F("inited radio"));
+  Serial.println(F("done init radio"));
+  Serial.flush();
 #endif
-
 #endif   // end of DORADIO switch
 
-  // initialize the temperature sensor 
+  // now initialize the temperature sensor 
   if (!tempsensor.begin(0x76))  // ebay module is at address 0x76 not (adafruit) 0x77
     {
       while (1) {  // temp sensor is broken, just blink med fast.
@@ -145,26 +147,31 @@ void setup()
         delay (200);
       }
     }
+
+  wdt_enable(WDTO_8S);
+  wdt_reset();
   
-#ifdef DOSERIAL
-  Serial.println(F("initted temp sensor"));
-#endif
+  delay (1000);
 
 #ifdef DOSERIAL
-  serial_print_temp();
-  Serial.print("batt=");
-  batt_v = analogRead(BATT_ADC);
-  Serial.print(batt_v * BATT_GAIN);
-  Serial.println("V");
+  Serial.println("hi");   // needed for the next bit to execute. No Idea why!
+  Serial.flush();
+#endif
+  
+#ifdef DOSERIAL
+  dtostrf((BATT_GAIN * analogRead(BATT_ADC)), 5, 2, bufnum);
+  dtostrf(tempsensor.readTemperature(),  5, 2, bufnum2);
+  snprintf_P((char *)buf, sizeof(buf), PSTR("V=%s T=%s°C D=%dmm"), bufnum, bufnum2, sonar_depth(SONAR_TIMEOUT, SONAR_PAT));  
+  Serial.println((char *)buf);
   Serial.flush();
 #endif
 
+  
 #ifdef DORADIO
-  sprintf((char*) buf, "%c%c%s %s", LOGGER, NODEID, fIAM, fVERSION);
+  snprintf_P(buf, sizeof(buf), PSTR("%c%c%S %S"), LOGGER, NODEID, fIAM, fVERSION);
   sendMsg(RELAY);
 #endif
 
-  wdt_enable(WDTO_8S);
 
 #ifdef DOSERIAL
   Serial.println(F("done setup"));
@@ -187,7 +194,7 @@ void loop(void)
       loopcounter_hours++;
     }
   // repeated action after a desired interval 
-  if ((loopcounter_hours == 1) &&
+  if ((loopcounter_hours == 2) &&
       (loopcounter_mins == 0) &&
       (loopcounter_2secs == 0))
     {
@@ -196,28 +203,15 @@ void loop(void)
       loopcounter_2secs = 0;
       
 #ifdef DOSERIAL
-      serial_print_temp();
-      Serial.flush();
-      // read battery before enabling sonar, which draws ~~15mA.
-      Serial.print("batt=");
-      batt_v = analogRead(BATT_ADC);
-      Serial.print(batt_v * BATT_GAIN);
-      Serial.println("V");
-      Serial.flush();
-      // I observed it takes the Sonar about 1.05 seconds from power on to first message
-      depth = sonar_depth(3000, 1); // timeout in 3000ms, pat dog while waiting.
-      if (depth < 0)
-	Serial.println("No valid depth received");
-      else
-	{
-	  Serial.print("depth=");
-	  Serial.println(depth);
-	}
+      dtostrf((BATT_GAIN * analogRead(BATT_ADC)), 5, 2, bufnum);
+      dtostrf(tempsensor.readTemperature(),  5, 2, bufnum2);
+      snprintf_P((char*) buf, sizeof(buf), PSTR("V=%s T=%s°C D=%dmm"), bufnum,bufnum2, sonar_depth(SONAR_TIMEOUT, SONAR_PAT));  
+      Serial.println((char *)buf);
       Serial.flush();
 #endif
 
 #ifdef DORADIO
-      radio_print_VTD(3000,1);
+      radio_print_VTD(SONAR_TIMEOUT, SONAR_PAT);
 #endif
     }
   LowPower.powerDown(SLEEP_2S, ADC_OFF, BOD_OFF);
