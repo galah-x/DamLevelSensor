@@ -1,0 +1,11 @@
+A water level monitor was made to monitor a farm dam level, it seems we may be moving into another drought.
+
+Its an ultrasonic sensor to measure the distance from a fixed mount above the water, pointing down, and a arduino + LoRa radio for the datalink to the logging computer in the office. Solar powered.
+
+The structure I live in is timber with corrugated iron for roof and wall sheeting. Thats not good for radios. So there is a radio relay on the roof relaying both RFM69 and RFM95 radio links into the office. This also provides some lightning protection.
+
+The dam is about 0.5km from the house, LoRa can do that easily even from inside the slightly conductive black poly pipe.
+
+Another USB motino with a radio link presents data to a linux computer, which logs the serial data and stores it in an influx database. Grafana on an internal http server then presents data to the user nicely. I don't currently use MQTT or LoRaWan.
+
+
