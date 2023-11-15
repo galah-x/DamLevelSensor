@@ -1,6 +1,6 @@
 //    -*- Mode: c++     -*-
 // emacs automagically updates the timestamp field on save
-// my $ver =  'functions : dam sonar level sensor  Time-stamp: "2023-08-01 14:23:08 john"';
+// my $ver =  'functions : dam sonar level sensor  Time-stamp: "2023-08-29 15:22:40 john"';
 
 
 // generally used to flash a led on for the period specified
@@ -122,6 +122,7 @@ void sendMsg(uint8_t to)
   uint8_t len;
   len = strlen((char *) buf);
   Rmanager.sendtoWait(buf, len, to);
+  radio.sleep();
 }
 
 

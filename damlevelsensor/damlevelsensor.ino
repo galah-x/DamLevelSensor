@@ -1,6 +1,6 @@
 //    -*- Mode: c++     -*-
 // emacs automagically updates the timestamp field on save
-// my $ver =  'dam sonar level sensor  Time-stamp: "2023-08-11 12:33:56 john"';
+// my $ver =  'dam sonar level sensor  Time-stamp: "2023-09-01 12:00:02 john"';
 
 // Im currently using arduino-1.8.10 as thats where some of the libraries are installed.
 // for a moteino 328P with LoRa radio,  no USB. no flash.
@@ -16,21 +16,21 @@
 #include "pinout.h"          // IO pin map
 #include "addresses.h"       // radio addresses
 #include "cal.h"             // adc + resistor cal values
-// #include "functions.h"  is positioned after the local variable defines
+// #include "functions.h"  is placed _after_ the local variable defines
 
 // the F() macro puts strings into flash, not RAM.
 // Lighter on RAM which on a 328P is usually more limiting
-#define fVERSION  F("20230801")
+#define fVERSION  F("20230901")
 #define fIAM      F("DamLevel")
 #define fTEMP     F("Temp=")
 
-// onboard HW serial is used for debug. Should not be defined for normal operation
+// onboard HW serial is used for DEBUG. Should NOT be defined for normal operation
 // this is to the programmer connector.   The  arduino  Serial. object. 
 // this #define does NOT affect SoftwareSerial to the Sonar module.
 // #define DOSERIAL
 #define SERIAL_BAUD 115200
 
-// The radio is used for normal operation. Generally turn radio on and serial off
+// The radio IS used for normal operation. Generally turn radio on and serial off
 // for normal installed use.
 // Mainly controllable here since LoRa in my office affects the link to relay, LogRX,
 // poorly. So I do most initial runup on serial debug.
@@ -131,7 +131,7 @@ void setup()
   }
   radio.setFrequency(915);    // to be sure, to be sure
   radio.setModemConfig(RH_RF95::Bw31_25Cr48Sf512);  //set for pre-configured slow,long range
-  radio.setTxPower(17);       //set for 50mw , +17dbm
+  radio.setTxPower(20);       //set for 100mw , +20dbm
   
 #ifdef DOSERIAL
   Serial.println(F("done init radio"));
@@ -185,8 +185,8 @@ void loop(void)
   loopcounter_2secs++ ;
   if (loopcounter_2secs > 29)  // 1 minute
     {
-      loopcounter_2secs = 0;
-      loopcounter_mins ++;
+      loopcounter_2secs=0;
+      loopcounter_mins++;
     }
   if (loopcounter_mins > 59)
     {
